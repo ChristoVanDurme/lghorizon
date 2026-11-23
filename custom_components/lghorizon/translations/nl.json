@@ -4,7 +4,7 @@
     "step": {
       "user": {
         "title": "LG Horizon - Provider en gebruikersnaam",
-        "description": "Vul de gegevens van je Ziggo, Telenet, UPC, Magenta of Virgin account in.",
+        "description": "Vul de gegevens van je Ziggo, Telenet, UPC, Magenta of Virgin account in. Telenet: vul je Telenet-wachtwoord in (of een refreshtoken).",
         "data": {
           "country_code": "Provider",
           "username": "Gebruikersnaam"
@@ -45,7 +45,11 @@
       },
       "reauth_confirm": {
         "description": "Je LGHorizon account authorization is verlopen. Vul je refreshtoken of wachtwoord opnieuw in",
-        "title": "Authenticatie verlopen"
+        "title": "Authenticatie verlopen",
+        "data": {
+          "password": "Wachtwoord",
+          "refresh_token": "Refreshtoken"
+        }
       }
     },
     "error": {

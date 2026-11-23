@@ -39,6 +39,12 @@ from lghorizon import (
 )
 
 
+from .telenet_login import (  # fork: Telenet username/password login
+    TelenetInvalidAuth,
+    TelenetLoginError,
+    async_apply_telenet_login,
+    telenet_password_schema,
+)
 from .const import (
     DOMAIN,
     CONF_COUNTRY_CODE,
@@ -233,6 +239,10 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             client_session = async_get_clientsession(self.hass)
 
             try:
+                user_input = dict(user_input)  # fork: Telenet login
+                await async_apply_telenet_login(
+                    self.hass, self._country_code, self._username, user_input
+                )
                 auth = LGHorizonAuth(
                     client_session,
                     self._country_code,
@@ -246,9 +256,9 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
             except LGHorizonApiLockedError:
                 errors["base"] = "account_locked"
-            except LGHorizonApiUnauthorizedError:
+            except (LGHorizonApiUnauthorizedError, TelenetInvalidAuth):
                 errors["base"] = "invalid_auth"
-            except LGHorizonApiConnectionError:
+            except (LGHorizonApiConnectionError, TelenetLoginError):
                 errors["base"] = "cannot_connect"
             except Exception:  # pylint: disable=broad-except
                 _LOGGER.exception("Unexpected exception")
@@ -270,6 +280,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             reauth_schema = reauth_schema.extend(
                 {
                     vol.Optional(CONF_REFRESH_TOKEN): cv.string,
+                    **telenet_password_schema(self._country_code),  # fork
                 }
             )
         else:
@@ -341,6 +352,9 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             cred_schema = cred_schema.extend(
                 {
                     vol.Optional(CONF_REFRESH_TOKEN): cv.string,
+                    **telenet_password_schema(
+                        self.CONFIG_DATA[CONF_COUNTRY_CODE]
+                    ),  # fork
                 }
             )
         else:
@@ -354,9 +368,17 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors: dict[str, str] = {}
 
         try:
+            await async_apply_telenet_login(  # fork: Telenet login
+                self.hass,
+                self.CONFIG_DATA[CONF_COUNTRY_CODE],
+                self.CONFIG_DATA[CONF_USERNAME],
+                self.CONFIG_DATA,
+            )
             await self.validate_config(self.hass)
-        except CannotConnect:
-            errors["base"] = "cannot_connect"
+        except (CannotConnect, TelenetLoginError) as err:
+            errors["base"] = (
+                "invalid_auth" if isinstance(err, TelenetInvalidAuth) else "cannot_connect"
+            )
         except InvalidAuth:
             errors["base"] = "invalid_auth"
         except AccountLocked:
